@@ -1,0 +1,5 @@
+level: INFO
+sink: stdout
+serialize: false
+enqueue: false
+colorize: true

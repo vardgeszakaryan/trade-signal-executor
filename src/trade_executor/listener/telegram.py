@@ -1,17 +1,17 @@
-import asyncio
-from typing import Optional, Type
+from typing import Optional
 
+from loguru import logger
 from telethon import TelegramClient, events
 
 from trade_executor.config import TelegramConfig
 from trade_executor.listener.base import (
     BaseMessageHandler,
-    SingalListener,
+    SignalListener,
     TelegramMessage,
 )
 
 
-class TelegramListener(SingalListener):
+class TelegramListener(SignalListener):
     def __init__(self, config: TelegramConfig):
         self._config = config
         self._client: Optional[TelegramClient] = None
@@ -25,9 +25,10 @@ class TelegramListener(SingalListener):
         )
 
         @self._client.on(events.NewMessage(chats=self._config.channels))
-        async def _handler(event):
+        async def _on_new_message(event):
             # 1. Fail early if no dynamic downstream handler is registered
             if not self._handler:
+                logger.warning("Handler is not set")
                 return
 
             reply_msg = None
@@ -39,6 +40,7 @@ class TelegramListener(SingalListener):
                 if original_message:
                     # Pass the actual message object/attributes, not the event wrapper
                     reply_msg = TelegramMessage(**original_message.to_dict())
+                    logger.debug("Reply message Detected:\n{}", reply_msg)
 
             # 3. Dispatch the sanitized structural signal
             msg = TelegramMessage(**event.message.to_dict(), reply=reply_msg)
@@ -47,10 +49,12 @@ class TelegramListener(SingalListener):
                 # TODO: logg Message ignored
                 return
 
+
+            logger.info("Message Recieved:\n{}", msg)
             await self._handler.handle(msg)
 
         await self._client.start()  # pyright: ignore
-        print("Telegram listener running. Press Ctrl+C to stop.")
+        logger.info("Telegram successfully initialized.")
         await self._client.run_until_disconnected()  # pyright: ignore
 
     async def close(self):
@@ -58,10 +62,13 @@ class TelegramListener(SingalListener):
             await self._client.disconnect()  # pyright: ignore[reportGeneralTypeIssues]
             self._client = None
 
-    def attach(self, handler: Type[BaseMessageHandler]):
-        if not issubclass(handler, BaseMessageHandler):
-            raise ValueError(
+        logger.info("Connection Closed")
+
+    def attach(self, handler: BaseMessageHandler):
+        if not isinstance(handler, BaseMessageHandler):
+            raise TypeError(
                 "Handler object must be an instance of 'BaseMessageHandler'"
             )
 
-        self._handler = handler()
+        self._handler = handler
+        logger.debug("Handler attached: {}", handler.__class__.__name__)

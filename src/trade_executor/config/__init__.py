@@ -1,2 +1,2 @@
 from .connection import TelegramConfig
-from .importer import import_config
+from .importer import all_config_import, import_config

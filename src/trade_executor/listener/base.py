@@ -2,65 +2,55 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Literal, Optional, Type, Union
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
 ## Message classes
 
 
-class DefaultMessage(BaseModel):  # TelegramMessage was renamed DefaultMessage.
-    model_config = ConfigDict(frozen=True, extra="allow")
+class RawMessage(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
 
     id: int
-    from_id: int
-    message: str
+    message: str = ""
     date: datetime
-    reply: Optional[DefaultMessage] = None
+    reply: Optional[RawMessage] = None
 
 
-class TelegramMessage(DefaultMessage):
+class TelegramMessage(RawMessage):
     platform: Literal["Telegram"] = "Telegram"
 
-    from_id: int
-    reply: Optional[DefaultMessage] = None
+    reply: Optional[RawMessage] = None
 
     @field_validator("reply", mode="before")
+    @classmethod
     def validate_reply(cls, data: Any):
         if data is None:
             return None
 
-        if isinstance(data, DefaultMessage):
+        if isinstance(data, RawMessage):
             return data
 
         return dict(data)
 
-    @field_validator("from_id", mode="before")
-    def validate_fromid(cls, data: Any):
-        if isinstance(data, dict):
-            return data["user_id"]
 
-        if isinstance(data, str):
-            return int(data)
-
-        return data
-
-
-class SingalListener(ABC):
+class SignalListener(ABC):
     @abstractmethod
     async def start(self): ...
 
     @abstractmethod
     async def close(self): ...
 
-    def attach(self, handler: Type[BaseMessageHandler]):
-        """Call handler(BaseMessageHandler) for every incoming message"""
+    @abstractmethod
+    def attach(self, handler: BaseMessageHandler) -> None:
+        """Register a handler class to be instantiated for incoming messages."""
         ...
 
 
 class BaseMessageHandler(ABC):
     @abstractmethod
-    def can_handle(self, msg_obj: DefaultMessage) -> bool: ...
+    def can_handle(self, msg_obj: RawMessage) -> bool: ...
 
     @abstractmethod
-    async def handle(self, msg_obj: DefaultMessage): ...
+    async def handle(self, msg_obj: RawMessage): ...

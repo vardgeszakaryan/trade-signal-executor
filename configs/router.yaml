@@ -1,0 +1,31 @@
+model_list:
+  # - model_name: parser
+  #   litellm_params:
+  #     model: huggingface/Qwen/Qwen3.6-27B:featherless-ai
+  #     api_key: "{HF_TOKEN}"
+    
+  - model_name: fallback
+    litellm_params:
+      model: huggingface/Qwen/Qwen3.6-35B-A3B
+      api_key: "{HF_TOKEN}"
+    
+  # - model_name: fallback
+  #   litellm_params:
+  #     model: huggingface/google/gemma-4-31B-it:novita
+  #     api_key: "{HF_TOKEN}"
+
+  - model_name: parser
+    litellm_params:
+      model: huggingface/google/gemma-4-26B-A4B-it:novita
+      api_key: "{HF_TOKEN}"
+      
+  # - model_name: parser
+  #   litellm_params:
+  #     model: huggingface/openai/gpt-oss-20b:groq
+  #     api_key: "{HF_TOKEN}"
+
+fallbacks:
+  - parser:
+      - fallback
+
+timeout: 60
