@@ -34,8 +34,8 @@ class ParsedData(BaseModel):
         description="If set none market order would be made."
     )
 
-    stop_loss: Optional[list[PriceSignal]]
-    take_profit: Optional[list[PriceSignal]]
+    stop_loss: Optional[PriceSignal]
+    take_profit: Optional[PriceSignal]
 
 
 class ModelConfig(BaseModel):
