@@ -12,3 +12,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Environment files
+.env

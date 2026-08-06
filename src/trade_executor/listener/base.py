@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -15,13 +15,13 @@ class RawMessage(BaseModel):
     id: int
     message: str = ""
     date: datetime
-    reply: Optional[RawMessage] = None
+    reply: RawMessage | None = None
 
 
 class TelegramMessage(RawMessage):
     platform: Literal["Telegram"] = "Telegram"
 
-    reply: Optional[RawMessage] = None
+    reply: RawMessage | None = None
 
     @field_validator("reply", mode="before")
     @classmethod

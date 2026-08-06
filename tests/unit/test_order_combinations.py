@@ -8,7 +8,7 @@ import itertools
 
 import pytest
 
-from trade_executor.execution.mt5.helper_functions import (
+from trade_executor.execution.mt5.order_math import (
     build_order_prices,
     linspace,
     plan_market_entries,

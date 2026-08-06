@@ -4,6 +4,8 @@ from pathlib import Path
 
 import yaml
 
+_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
+
 
 def all_config_import(
     directory_path: str | Path, change_vals: bool = False, **kwargs
@@ -12,7 +14,6 @@ def all_config_import(
         directory_path = Path(directory_path)
 
     if directory_path.is_file():
-        # TODO ADD LOGGING
         raise ValueError("Given path is not a directory")
 
     final_config = {}
@@ -29,56 +30,55 @@ def all_config_import(
 
 
 def import_config(config_path: Path, change_vals: bool = False, **kwargs) -> dict | None:
-    """
-    @args
-        config_path: Path -> Config path that should be loaded
-        change_vals: bool -> Whether to change loaded text before parsing or not
-        **kwargs: Any -> Used only for parameters that need to be changed
+    """Load a single YAML/JSON config file and optionally interpolate placeholders.
 
-    @returns: (dict | none) -> dict if import was successfull, None otherwise
+    Args:
+        config_path: Path to the config file.
+        change_vals: Whether to interpolate ``{key}`` placeholders with *kwargs*.
+        **kwargs: Substitution values for placeholders.
 
-    @raises
-        ValueError: if the path is a directory, does not exist, or the
-            file extension is not a supported config format (yaml/yml/json).
+    Returns:
+        Parsed dict, or *None* if the file is empty.
+
+    Raises:
+        ValueError: If *config_path* is a directory, does not exist, or has
+            an unsupported extension.
     """
     if config_path.is_dir():
-        # TODO add logg
         raise ValueError("Given config path is a directory.")
 
     if not config_path.exists():
-        # TODO add logg
         raise ValueError("Given config file doesn't exist.")
 
     file_type = config_path.suffix[1:].lower()
 
-    if not __registry__.get(file_type):
-        # TODO add logg
+    if not _FORMAT_REGISTRY.get(file_type):
         raise ValueError("Given config file is not supported.")
 
     content = config_path.read_text()
 
     if change_vals:
-        # Safe format that leaves missing placeholders unchanged
         try:
             content = content.format(**kwargs)
         except KeyError:
-            # If any placeholders are missing, fall back to substitution that
-            # only replaces keys which are actually available in kwargs.
-            def safe_format(match):
+            # Only replace placeholders for which we have values;
+            # leave unresolved placeholders intact.
+            def _safe_substitute(match: re.Match) -> str:
                 key = match.group(1)
                 return kwargs.get(key, match.group(0))
 
-            content = re.sub(r"\{(\w+)\}", safe_format, content)
+            content = _PLACEHOLDER_RE.sub(_safe_substitute, content)
 
-    return __registry__[file_type](content)
+    return _FORMAT_REGISTRY[file_type](content)
 
 
-def import_yaml(content: str) -> dict:
+def _load_yaml(content: str) -> dict:
     return yaml.safe_load(content)
 
 
-def import_json(content: str) -> dict:
+def _load_json(content: str) -> dict:
     return json.loads(content)
 
 
-__registry__ = {"yaml": import_yaml, "yml": import_yaml, "json": import_json}
+_FORMAT_REGISTRY = {"yaml": _load_yaml, "yml": _load_yaml, "json": _load_json}
+

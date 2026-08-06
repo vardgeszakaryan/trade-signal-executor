@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import re
 import sys
 from datetime import timedelta
 from io import TextIOWrapper
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
+
+_LOGURU_TIME_OR_SIZE_RE = re.compile(
+    r"^\d+\s*(kb|mb|gb|b|bytes?|days?|hours?|minutes?|seconds?|weeks?|months?)?$"
+    r"|^([01]\d|2[0-3]):([0-5]\d)$"
+)
 
 
 class LevelConfig(BaseModel):
@@ -13,9 +20,9 @@ class LevelConfig(BaseModel):
 
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     sink: Path | TextIOWrapper | Literal["stderr", "stdout"]
-    rotation: Optional[str | int | timedelta] = None
-    retention: Optional[str | int | timedelta] = None
-    format: Optional[str] = None
+    rotation: str | int | timedelta | None = None
+    retention: str | int | timedelta | None = None
+    format: str | None = None
     serialize: bool = False
     enqueue: bool = False
     colorize: bool = False
@@ -40,13 +47,9 @@ class LevelConfig(BaseModel):
             return value
 
         if isinstance(value, str):
-            # Clean string for easier regex matching
             cleaned = value.strip().lower()
 
-            # Pattern matches: "10 mb", "1 week", "2b", "12:00", or raw digits "500"
-            pattern = r"^\d+\s*(kb|mb|gb|b|bytes?|days?|hours?|minutes?|seconds?|weeks?|months?)?$|^([01]\d|2[0-3]):([0-5]\d)$"
-
-            if not re.match(pattern, cleaned):
+            if not _LOGURU_TIME_OR_SIZE_RE.match(cleaned):
                 raise ValueError(f"Invalid Loguru format: '{value}'")
             return value
 
@@ -55,12 +58,13 @@ class LevelConfig(BaseModel):
 
 class LoggingConfig(BaseModel):
     # Console
-    stdout_conf: Optional[LevelConfig] = None
-    stderr_conf: Optional[LevelConfig] = None
+    stdout_conf: LevelConfig | None = None
+    stderr_conf: LevelConfig | None = None
 
     # Files
-    debug_conf: Optional[LevelConfig] = None
-    info_conf: Optional[LevelConfig] = None
-    warning_conf: Optional[LevelConfig] = None
-    error_conf: Optional[LevelConfig] = None
-    critical_conf: Optional[LevelConfig] = None
+    debug_conf: LevelConfig | None = None
+    info_conf: LevelConfig | None = None
+    warning_conf: LevelConfig | None = None
+    error_conf: LevelConfig | None = None
+    critical_conf: LevelConfig | None = None
+

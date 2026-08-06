@@ -1,2 +1,2 @@
-model: parser
+model: gpt-oss-20b
 system_prompt: D:/projects/Trading/trade-signal-executor/configs/config_files/system_prompt.md

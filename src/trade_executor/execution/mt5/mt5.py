@@ -1,6 +1,7 @@
-import os
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Literal, Optional, Tuple
+from typing import Literal
 
 import MetaTrader5 as mt5
 from loguru import logger
@@ -9,7 +10,7 @@ from pydantic import BaseModel
 from trade_executor.execution import TradeExecutor, TradeOrder
 from trade_executor.parser.base import ParsedData, PriceSignal, SignalAction
 
-from trade_executor.execution.mt5.helper_functions import (
+from trade_executor.execution.mt5.order_math import (
     build_order_prices,
     plan_market_entries,
     split_volume,
@@ -21,9 +22,9 @@ class OrderMT5(BaseModel):
     volume: float
     direction: Literal["BUY", "SELL"]
 
-    price: Optional[PriceSignal] = None
-    sl: Optional[PriceSignal] = None
-    tp: Optional[PriceSignal] = None
+    price: PriceSignal | None = None
+    sl: PriceSignal | None = None
+    tp: PriceSignal | None = None
 
     comment: str = "trade-signal-executor"
     type_time: int = mt5.ORDER_TIME_GTC
@@ -65,14 +66,14 @@ class MT5Trader(TradeExecutor):
             return info.point
         return info.point * 10
 
-    def _norm(self, value: Optional[float], point: float) -> Optional[float]:
+    def _norm(self, value: float | None, point: float) -> float | None:
         if value is None:
             return None
         return round(round(value / point) * point, 8)
 
     def _order_type_and_action(
         self, is_buy: bool, price: float, market_norm: float
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         """Pick the MT5 request action + order type for a single order.
 
         price == current market -> immediate market execution (DEAL).
@@ -105,15 +106,16 @@ class MT5Trader(TradeExecutor):
 
         # No entry price -> execute instantly at market price. The price is
         # replicated when SL/TP spans multiple levels so each gets its own order.
-        if order.price is None:
-            order.price = PriceSignal(
+        entry_signal = order.price
+        if entry_signal is None:
+            entry_signal = PriceSignal(
                 price=plan_market_entries(market, order.sl, order.tp, self.max_orders),
                 unit="price",
                 type="multiple",
             )
 
         orders = build_order_prices(
-            order.price, order.sl, order.tp,
+            entry_signal, order.sl, order.tp,
             order.direction, self.get_pip_size(info), self.max_orders,
         )
 
@@ -188,7 +190,7 @@ class MT5Trader(TradeExecutor):
     def _cancel_all_orders(self, order: TradeOrder, symbol: str):
         self._remove_pending(None, symbol)
 
-    def _remove_pending(self, order_id: Optional[int], symbol: str):
+    def _remove_pending(self, order_id: int | None, symbol: str):
         for pending in mt5.orders_get(symbol=symbol) or ():
             if order_id is not None and str(order_id) not in (pending.comment or ""):
                 continue
@@ -224,6 +226,9 @@ class MT5Trader(TradeExecutor):
 
             case SignalAction.CANCEL:
                 self._cancel_order(order, symbol)
+
+            case SignalAction.IGNORE | SignalAction.UPDATE:
+                logger.info("Action {} requires no order placement; skipping", parsed.action.value)
 
 
 if __name__ == "__main__":

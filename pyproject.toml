@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "trade-singal-executor"
+name = "trade-signal-executor"
 version = "0.1.0"
 description = "An autonomous system built for trade execution automation."
 readme = "README.md"
@@ -13,7 +13,6 @@ dependencies = [
     "loguru>=0.7.3",
     "metatrader5>=5.0.6090",
     "pydantic>=2.13.4",
-    "pytest-asyncio>=1.4.0",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.3",
     "telethon>=1.44.0",
@@ -21,8 +20,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "asyncio>=4.0.0",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
 ]
 
 [tool.pytest.ini_options]
@@ -31,3 +30,7 @@ pythonpath = ["src"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[project.scripts]
+monitor = "cli.main:main"
+test-models = "cli.model_eval:main"

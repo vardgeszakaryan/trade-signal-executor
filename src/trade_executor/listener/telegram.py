@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 from loguru import logger
 from telethon import TelegramClient, events
@@ -14,8 +14,8 @@ from trade_executor.listener.base import (
 class TelegramListener(SignalListener):
     def __init__(self, config: TelegramConfig):
         self._config = config
-        self._client: Optional[TelegramClient] = None
-        self._handler: Optional[BaseMessageHandler] = None
+        self._client: TelegramClient | None = None
+        self._handler: BaseMessageHandler | None = None
 
     async def start(self):
         self._client = TelegramClient(
@@ -46,11 +46,11 @@ class TelegramListener(SignalListener):
             msg = TelegramMessage(**event.message.to_dict(), reply=reply_msg)
 
             if not self._handler.can_handle(msg):
-                # TODO: logg Message ignored
+                logger.debug("Message ignored (handler declined): {}", msg.id)
                 return
 
 
-            logger.info("Message Recieved:\n{}", msg)
+            logger.info("Message Received:\n{}", msg)
             await self._handler.handle(msg)
 
         await self._client.start()  # pyright: ignore

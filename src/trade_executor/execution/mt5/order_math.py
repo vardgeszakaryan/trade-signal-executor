@@ -1,4 +1,5 @@
-from typing import Any, Dict, Generator, Iterable, List, Optional
+from collections.abc import Generator, Iterable
+from typing import Any
 
 from trade_executor.parser.base import PriceSignal
 
@@ -26,7 +27,7 @@ def _expand(signal: PriceSignal, max_orders: int) -> Iterable[float]:
     return iter([signal.price])
 
 
-def split_volume(volume: float, parts: int, step: float = 0.01) -> List[float]:
+def split_volume(volume: float, parts: int, step: float = 0.01) -> list[float]:
     """Split a lot into step-aligned chunks; the remainder goes to the last order.
     e.g. volume=0.04, parts=3, step=0.01 -> [0.01, 0.01, 0.02].
     `parts` is clamped so no chunk falls below one `step`.
@@ -39,10 +40,10 @@ def split_volume(volume: float, parts: int, step: float = 0.01) -> List[float]:
 
 def plan_market_entries(
     market: float,
-    sl: Optional[PriceSignal],
-    tp: Optional[PriceSignal],
+    sl: PriceSignal | None,
+    tp: PriceSignal | None,
     max_orders: int,
-) -> List[float]:
+) -> list[float]:
     """Entry prices for a market execution.
     The market price is replicated when SL or TP spans multiple levels
     (type != "single") so each level becomes its own order.
@@ -52,12 +53,12 @@ def plan_market_entries(
 
 
 def resolve_prices(
-    signal: Optional[PriceSignal],
-    pivot: Optional[float],
+    signal: PriceSignal | None,
+    pivot: float | None,
     sign: int,
     pip_size: float,
     max_orders: int = 3,
-) -> List[float]:
+) -> list[float]:
     if signal is None:
         return []
     values = list(_expand(signal, max_orders))
@@ -69,13 +70,13 @@ def resolve_prices(
 
 
 def build_order_prices(
-    entry: Optional[PriceSignal],
-    sl: Optional[PriceSignal],
-    tp: Optional[PriceSignal],
+    entry: PriceSignal | None,
+    sl: PriceSignal | None,
+    tp: PriceSignal | None,
     direction: str,
     pip_size: float,
     max_orders: int = 3,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     is_buy = direction == "BUY"
     # BUY: SL is below (-), TP is above (+)
     # SELL: SL is above (+), TP is below (-)

@@ -1,31 +1,26 @@
 model_list:
-  # - model_name: parser
-  #   litellm_params:
-  #     model: huggingface/Qwen/Qwen3.6-27B:featherless-ai
-  #     api_key: "{HF_TOKEN}"
-    
-  - model_name: fallback
+  - model_name: llama-3.3-70b
     litellm_params:
-      model: huggingface/Qwen/Qwen3.6-35B-A3B
-      api_key: "{HF_TOKEN}"
-    
-  # - model_name: fallback
-  #   litellm_params:
-  #     model: huggingface/google/gemma-4-31B-it:novita
-  #     api_key: "{HF_TOKEN}"
+      model: nvidia_nim/meta/llama-3.3-70b-instruct
+      api_key: "{NVIDIA_NIM_API}"
 
-  - model_name: parser
+  - model_name: nemetron-3-nano:30b
     litellm_params:
-      model: huggingface/google/gemma-4-26B-A4B-it:novita
-      api_key: "{HF_TOKEN}"
-      
-  # - model_name: parser
-  #   litellm_params:
-  #     model: huggingface/openai/gpt-oss-20b:groq
-  #     api_key: "{HF_TOKEN}"
+      model: nvidia_nim/nvidia/nemotron-3-nano-30b-a3b
+      api_key: "{NVIDIA_NIM_API}"
+
+  - model_name: gpt-oss-20b
+    litellm_params:
+      model: nvidia_nim/openai/gpt-oss-20b
+      api_key: "{NVIDIA_NIM_API}"
+
+  - model_name: gemma-4-31b-it
+    litellm_params:
+      model: nvidia_nim/google/gemma-4-31b-it
+      api_key: "{NVIDIA_NIM_API}"
 
 fallbacks:
-  - parser:
-      - fallback
+  - gpt-oss-20b:
+      - gemma-4-31b-it
 
 timeout: 60

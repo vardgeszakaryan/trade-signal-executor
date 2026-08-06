@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Union
+from typing import Any
 
 from pydantic import BaseModel, field_validator
 from pydantic.config import ConfigDict
@@ -13,22 +13,17 @@ class TelegramConfig(BaseModel):
 
     @field_validator("channels", mode="after")
     @classmethod
-    def vlaidate_channel(cls, data: Any) -> Any:
-        new_data = []
-
-        for channel in data:
+    def normalize_channels(cls, channels: list[str | int]) -> list[str | int]:
+        normalized: list[str | int] = []
+        for channel in channels:
             if isinstance(channel, str):
-                new_data.append(("" if channel.startswith("@") else "@") + channel)
-
+                normalized.append(("" if channel.startswith("@") else "@") + channel)
             elif isinstance(channel, int):
-                new_data.append(-channel if channel > 0 else channel)
-
-        return new_data
+                normalized.append(-channel if channel > 0 else channel)
+        return normalized
 
     @field_validator("api_id", mode="before")
     @classmethod
-    def check_id(cls, data: Any) -> Any:
-        if isinstance(data, int):
-            return data
+    def coerce_api_id(cls, value: Any) -> int:
+        return int(value)
 
-        return int(data)

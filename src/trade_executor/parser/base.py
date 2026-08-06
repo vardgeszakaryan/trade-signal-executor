@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.fields import Field
 
 from trade_executor.listener import RawMessage
@@ -15,9 +17,13 @@ class SignalAction(str, Enum):
     SELL = "SELL"
     CLOSE = "CLOSE"
     CANCEL = "CANCEL"
+    IGNORE = "IGNORE"
+    UPDATE = "UPDATE"
 
 
 class PriceSignal(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     price: list[float] = Field(description="Multiple Prices are supported")
     unit: Literal["pips", "price"]
     type: Literal["single", "multiple", "range"] = Field(
@@ -26,16 +32,18 @@ class PriceSignal(BaseModel):
 
 
 class ParsedData(BaseModel):
-    resp_time: float = Field(description="Response time in milleseconds.")
+    model_config = ConfigDict(frozen=True)
+
+    resp_time: float = Field(default=0.0, description="Response time in milliseconds.")
     size: float = Field(description="Size is represented in lots")
 
     action: SignalAction
-    entry: Optional[PriceSignal] = Field(
-        description="If set none market order would be made."
+    entry: PriceSignal | None = Field(
+        default=None, description="If set none market order would be made."
     )
 
-    stop_loss: Optional[PriceSignal]
-    take_profit: Optional[PriceSignal]
+    stop_loss: PriceSignal | None = None
+    take_profit: PriceSignal | None = None
 
 
 class ModelConfig(BaseModel):

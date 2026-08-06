@@ -14,7 +14,7 @@ class TradeOrder(BaseModel):
 
 
 ## Abstractions
-class TradeExecutor:
+class TradeExecutor(ABC):
     @abstractmethod
     def place_order(self): ...
 

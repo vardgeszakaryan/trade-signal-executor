@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 from litellm.router import Router
@@ -75,7 +76,9 @@ class LLMParser(DefaultParser):
 
         Only the message *text* is forwarded to the LLM; the message's
         structural fields (id/date/reply/platform) are never sent.
+        Response time is measured programmatically.
         """
+        start_time = time.perf_counter()
         resp = await self._client.generate(
             model=self._model_config.model,
             content=message.message,
@@ -83,12 +86,15 @@ class LLMParser(DefaultParser):
             temperature=self._model_config.temperature,
             top_p=self._model_config.top_p,
         )
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
         content = resp.choices[0].message.content  # pyright: ignore
         logger.debug("LLM response:\n{}", content)
 
         try:
-            return ParsedData.model_validate_json(content)
+            parsed = ParsedData.model_validate_json(content)
+            return parsed.model_copy(update={"resp_time": elapsed_ms})
         except ValidationError:
             logger.error("Failed to validate LLM response as ParsedData:\n{}", content)
             raise
+
