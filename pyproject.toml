@@ -9,6 +9,7 @@ description = "An autonomous system built for trade execution automation."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "cryptg>=0.6.0",
     "litellm>=1.94.1",
     "loguru>=0.7.3",
     "metatrader5>=5.0.6090",
@@ -16,6 +17,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.3",
     "telethon>=1.44.0",
+    "typer>=0.15",
 ]
 
 [dependency-groups]
@@ -32,5 +34,5 @@ pythonpath = ["src"]
 where = ["src"]
 
 [project.scripts]
-monitor = "cli.main:main"
+tse = "cli.main:app"
 test-models = "cli.model_eval:main"

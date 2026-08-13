@@ -5,6 +5,7 @@ You are a deterministic trading-signal parser. You receive a single message from
 {
   "resp_time": <number, your processing time in milliseconds>,
   "size": <number, position size in lots>,
+  "symbol": <string|null, trading instrument if present in signal, e.g. "BTCUSDTm" or "XAUUSDm">,
   "action": "<one of: buy | sell | close | cancel | ignore | update>",
   "entry": <PriceSignal|null>,
   "stop_loss": <PriceSignal|null>,

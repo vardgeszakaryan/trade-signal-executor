@@ -6,6 +6,7 @@ from litellm.router import Router
 from loguru import logger
 
 from cli.base import TradeConfig
+from db import OrderRepository, SQLiteDatabase, run_migrations
 from trade_executor.config import TelegramConfig
 from trade_executor.execution import TradeExecutor, TradeOrder
 from trade_executor.execution.mt5 import MT5Trader
@@ -21,11 +22,13 @@ class MessageHandler(BaseMessageHandler):
         model_config: ModelConfig,
         router: Router,
         executor: TradeExecutor | None = None,
+        order_repo: OrderRepository | None = None,
     ):
         self.config = config
         self.model_config = model_config
         self.router = router
         self.executor = executor
+        self.order_repo = order_repo
         self.parser = get_parser(self.config.parser_type)(
             system_prompt=self.model_config.system_prompt,
             router=router,
@@ -71,13 +74,30 @@ class MessageHandler(BaseMessageHandler):
             else parsed
         )
 
-        trade_order = TradeOrder(id=msg_obj.id, order=final_parsed)
-        symbol = self.config.default_symbol
+        # Resolve signal ID: CANCEL/CLOSE/UPDATE that arrive as replies to the
+        # original BUY/SELL message need the *replied-to* message's ID (that's
+        # what the order was recorded under).  BUY/SELL always use their own ID.
+        if (
+            parsed.action in (SignalAction.CANCEL, SignalAction.CLOSE, SignalAction.UPDATE)
+            and msg_obj.reply is not None
+        ):
+            signal_id = msg_obj.reply.id
+            logger.debug(
+                "Action {} is a reply; using original message id {} (not {})",
+                parsed.action.value, signal_id, msg_obj.id,
+            )
+        else:
+            signal_id = msg_obj.id
+
+        trade_order = TradeOrder(id=signal_id, order=final_parsed)
+        symbol = final_parsed.symbol or self.config.default_symbol
 
         # 4. Dispatch to TradeExecutor
         if self.executor is not None:
             try:
-                await asyncio.to_thread(self.executor.place_order, trade_order, symbol)
+                await asyncio.to_thread(
+                    self.executor.place_order, trade_order, symbol, self.order_repo
+                )
                 logger.info(
                     "Successfully executed trade order {} ({}) on symbol {}",
                     trade_order.id,
@@ -94,7 +114,13 @@ class MessageHandler(BaseMessageHandler):
             )
 
 
-async def run_ai_backend(configs: dict[str, Any]):
+async def run_ai_backend(
+    configs: dict[str, Any],
+    *,
+    dry_run: bool = False,
+    symbol_override: str | None = None,
+    lot_override: float | None = None,
+):
     """Wire up listener → parser → executor pipeline and start the Telegram monitor."""
     required_config_keys = ["telegram", "router", "model", "trades"]
 
@@ -108,11 +134,25 @@ async def run_ai_backend(configs: dict[str, Any]):
     trade_config = TradeConfig(**configs["trades"])
     model_config = ModelConfig(response_schema=ParsedData, **configs["model"])
 
+    # Apply CLI overrides
+    if symbol_override is not None:
+        trade_config = trade_config.model_copy(update={"default_symbol": symbol_override})
+    if lot_override is not None:
+        trade_config = trade_config.model_copy(update={"max_lot_size": lot_override})
+
     logger.debug("Model config: {}", model_config)
 
-    # Initialize MT5 executor if credentials are provided in environment
+    # Initialize DB + OrderRepository
+    db_path = os.environ.get("DB_PATH", "trade_executor.db")
+    db = SQLiteDatabase(db_path=db_path)
+    db.connect()
+    run_migrations(db)
+    order_repo = OrderRepository(db)
+    logger.info("Database initialized at {}", db_path)
+
+    # Initialize MT5 executor if credentials are provided and not dry-run
     executor: TradeExecutor | None = None
-    if (
+    if not dry_run and (
         os.environ.get("MT5_LOGIN")
         and os.environ.get("MT5_PASSWORD")
         and os.environ.get("MT5_SERVER")
@@ -130,7 +170,8 @@ async def run_ai_backend(configs: dict[str, Any]):
         except Exception as exc:
             logger.error("MT5Trader initialization failed: {}", exc)
     else:
-        logger.info("MT5 credentials not found in environment; running in dry-run mode.")
+        reason = "dry-run mode" if dry_run else "MT5 credentials not found in environment"
+        logger.info("{}; running in dry-run mode.", reason)
 
     # Load Message listener
     telegram_config = TelegramConfig(
@@ -144,6 +185,7 @@ async def run_ai_backend(configs: dict[str, Any]):
         model_config=model_config,
         router=router,
         executor=executor,
+        order_repo=order_repo,
     )
 
     listener.attach(handler)
@@ -152,6 +194,8 @@ async def run_ai_backend(configs: dict[str, Any]):
         await listener.start()
     finally:
         await listener.close()
+        db.close()
+        logger.info("Database connection closed.")
         if executor is not None:
             executor.close_connection()
-            logger.info("MT5Trader connection closed.")
+            logger.info("MT5Trader connection closed.")

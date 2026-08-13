@@ -1,4 +1,4 @@
 parser_type: llm
 max_lot_size: 0.03
-
+default_symbol: XAUUSDm
 cancel_strategy: manual

@@ -36,6 +36,7 @@ class ParsedData(BaseModel):
 
     resp_time: float = Field(default=0.0, description="Response time in milliseconds.")
     size: float = Field(description="Size is represented in lots")
+    symbol: str | None = Field(default=None, description="Symbol if specified in signal (e.g. BTCUSDTm, XAUUSDm)")
 
     action: SignalAction
     entry: PriceSignal | None = Field(
